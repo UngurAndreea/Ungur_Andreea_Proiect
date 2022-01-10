@@ -54,7 +54,7 @@ namespace Ungur_Andreea_Proiect.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("ID,Name,CategoryID,BrandID,Price")] Product product)
+        public async Task<IActionResult> Create([Bind("Name,CategoryID,BrandID,Price")] Product product)
         {
             if (ModelState.IsValid)
             {
@@ -62,6 +62,8 @@ namespace Ungur_Andreea_Proiect.Controllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
+            ViewData["BrandID"] = new SelectList(_context.Brands, "BrandID", "BrandID", product.BrandID);
+            ViewData["CategoryID"] = new SelectList(_context.Categories, "CategoryID", "CategoryID", product.CategoryID);
             return View(product);
         }
 
@@ -78,7 +80,10 @@ namespace Ungur_Andreea_Proiect.Controllers
             {
                 return NotFound();
             }
+            ViewData["BrandID"] = new SelectList(_context.Brands, "BrandID", "BrandID", product.BrandID);
+            ViewData["CategoryID"] = new SelectList(_context.Categories, "CategoryID", "CategoryID", product.CategoryID);
             return View(product);
+            
         }
 
         // POST: Products/Edit/5
