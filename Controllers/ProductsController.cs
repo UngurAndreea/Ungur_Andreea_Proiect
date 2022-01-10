@@ -34,7 +34,11 @@ namespace Ungur_Andreea_Proiect.Controllers
             }
 
             var product = await _context.Products
-                .FirstOrDefaultAsync(m => m.ID == id);
+.Include(s => s.Orders)
+.ThenInclude(e => e.Customer)
+.AsNoTracking()
+.FirstOrDefaultAsync(m => m.ID == id);
+
             if (product == null)
             {
                 return NotFound();
@@ -46,6 +50,14 @@ namespace Ungur_Andreea_Proiect.Controllers
         // GET: Products/Create
         public IActionResult Create()
         {
+
+            Product product = new Product();
+            if (product == null)
+            {
+                return NotFound();
+            }
+            ViewData["BrandID"] = new SelectList(_context.Brands, "BrandID", "BrandID", product.BrandID);
+            ViewData["CategoryID"] = new SelectList(_context.Categories, "CategoryID", "CategoryID", product.CategoryID);
             return View();
         }
 
@@ -56,14 +68,21 @@ namespace Ungur_Andreea_Proiect.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Name,CategoryID,BrandID,Price")] Product product)
         {
-            if (ModelState.IsValid)
+            try
+            {
+                if (ModelState.IsValid)
             {
                 _context.Add(product);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["BrandID"] = new SelectList(_context.Brands, "BrandID", "BrandID", product.BrandID);
-            ViewData["CategoryID"] = new SelectList(_context.Categories, "CategoryID", "CategoryID", product.CategoryID);
+            }
+            catch (DbUpdateException /* ex*/)
+            {
+                ModelState.AddModelError("", "Unable to save changes. " +
+                "Try again, and if the problem persists ");
+            }
+            
             return View(product);
         }
 
@@ -80,8 +99,8 @@ namespace Ungur_Andreea_Proiect.Controllers
             {
                 return NotFound();
             }
-            ViewData["BrandID"] = new SelectList(_context.Brands, "BrandID", "BrandID", product.BrandID);
-            ViewData["CategoryID"] = new SelectList(_context.Categories, "CategoryID", "CategoryID", product.CategoryID);
+ViewData["BrandID"] = new SelectList(_context.Brands, "BrandID", "BrandID", product.BrandID);
+           ViewData["CategoryID"] = new SelectList(_context.Categories, "CategoryID", "CategoryID", product.CategoryID);
             return View(product);
             
         }
@@ -89,40 +108,35 @@ namespace Ungur_Andreea_Proiect.Controllers
         // POST: Products/Edit/5
         // To protect from overposting attacks, enable the specific properties you want to bind to.
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
+        [HttpPost, ActionName("Edit")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("ID,Name,CategoryID,BrandID,Price")] Product product)
+        public async Task<IActionResult> EditPost(int? id)
         {
-            if (id != product.ID)
+            if (id == null)
             {
                 return NotFound();
             }
-
-            if (ModelState.IsValid)
+            var studentToUpdate = await _context.Products.FirstOrDefaultAsync(s => s.ID == id);
+            if (await TryUpdateModelAsync<Product>(studentToUpdate,"",s => s.Name, s=>s.CategoryID, s=>s.BrandID, s => s.Price))
             {
                 try
                 {
-                    _context.Update(product);
                     await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
                 }
-                catch (DbUpdateConcurrencyException)
+                catch (DbUpdateException /* ex */)
                 {
-                    if (!ProductExists(product.ID))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    ModelState.AddModelError("", "Unable to save changes. " +
+                    "Try again, and if the problem persists");
                 }
-                return RedirectToAction(nameof(Index));
             }
-            return View(product);
+            return View(studentToUpdate);
         }
 
+
+
         // GET: Products/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(int? id, bool? saveChangesError = false)
         {
             if (id == null)
             {
@@ -130,12 +144,17 @@ namespace Ungur_Andreea_Proiect.Controllers
             }
 
             var product = await _context.Products
+                .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.ID == id);
             if (product == null)
             {
                 return NotFound();
             }
-
+            if (saveChangesError.GetValueOrDefault())
+            {
+                ViewData["ErrorMessage"] =
+                "Delete failed. Try again";
+            }
             return View(product);
         }
 
@@ -145,9 +164,19 @@ namespace Ungur_Andreea_Proiect.Controllers
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var product = await _context.Products.FindAsync(id);
+            if (product == null)
+            {
+                return RedirectToAction(nameof(Index));
+            }
+            try { 
             _context.Products.Remove(product);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateException /* ex */)
+            {
+                return RedirectToAction(nameof(Delete), new {id = id, saveChangesError = true });
+            }
         }
 
         private bool ProductExists(int id)
